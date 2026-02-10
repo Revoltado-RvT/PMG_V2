@@ -1,472 +1,393 @@
-# PNETLab Manager v3.0 - Instalação Automatizada 🚀
+# 📦 Guia de Instalação - PMG v3.2
 
-[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/Revoltado-RvT/PMG_V2)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)](https://www.linux.org/)
-
-**Instalador completamente automatizado - do zero à execução em menos de 2 minutos!**
-
----
-
-## 🎯 O Que Este Instalador Faz?
-
-O `auto-install-pmg.sh` é um instalador **completamente automatizado** que:
-
-✅ **Baixa** o projeto direto do GitHub  
-✅ **Extrai** todos os arquivos automaticamente  
-✅ **Instala** dependências necessárias  
-✅ **Converte** arquivos para o formato correto  
-✅ **Aplica** permissões automaticamente  
-✅ **Configura** seu shell (PATH e alias)  
-✅ **Executa** `/opt/unetlab/wrappers/unl_wrapper -a fixpermissions` (se disponível)  
-✅ **Testa** a instalação  
-
-**Tudo isso sem precisar de nenhuma interação manual!**
-
----
-
-## ⚡ Instalação Rápida (Método Recomendado)
-
-### Opção 1: Download Direto + Execução
-
-```bash
-# Baixar o instalador
-wget https://raw.githubusercontent.com/Revoltado-RvT/PMG_V2/main/auto-install-pmg.sh
-
-# Dar permissão de execução
-chmod +x auto-install-pmg.sh
-
-# Executar
-./auto-install-pmg.sh
-```
-
-### Opção 2: Comando Único (One-Liner)
-
-```bash
-wget -qO- https://raw.githubusercontent.com/Revoltado-RvT/PMG_V2/main/auto-install-pmg.sh | bash
-```
-
-### Opção 3: Com curl
-
-```bash
-curl -sSL https://raw.githubusercontent.com/Revoltado-RvT/PMG_V2/main/auto-install-pmg.sh | bash
-```
-
----
+Este guia fornece instruções detalhadas para instalar o PMG em seu sistema PNETLab.
 
 ## 📋 Pré-requisitos
 
-### Sistema Operacional
-- ✅ Ubuntu 18.04+
-- ✅ Debian 9+
-- ✅ CentOS 7+
-- ✅ Fedora
-- ✅ Qualquer distribuição Linux com bash
+Antes de instalar o PMG, certifique-se de que seu sistema atende aos seguintes requisitos:
 
-### Acesso
-- ✅ **NÃO execute como root** (use usuário normal)
-- ✅ Usuário deve ter permissão `sudo` (para instalar dependências)
+- ✅ Sistema operacional: Ubuntu/Debian Linux
+- ✅ PNETLab instalado (recomendado)
+- ✅ Acesso root ou sudo
+- ✅ Conexão ativa com a internet
+- ✅ Mínimo de 1GB de espaço livre em disco
 
----
+## 🚀 Métodos de Instalação
 
-## 🔧 O Que Será Instalado?
-
-### Dependências Obrigatórias
-- `curl` - Para downloads
-- `wget` - Para downloads alternativos
-- `unzip` - Para extrair arquivos
-- `python3` - Para o parser
-
-### Dependências Opcionais (instaladas se disponíveis)
-- `qemu-utils` - Para conversão de imagens
-- `sshpass` - Para upload SSH com senha
-- `git` - Para desenvolvimento
-
-### Arquivos Instalados
-```
-~/.local/bin/pmg                 # Script principal
-~/.local/bin/labhub_parser.py    # Parser Python
-~/.bashrc                        # Atualizado com PATH e alias
-```
-
----
-
-## 📖 Processo de Instalação Detalhado
-
-Veja exatamente o que acontece quando você executa o instalador:
-
-### 1. Verificações Iniciais
-```
-✓ Verifica se não está rodando como root
-✓ Detecta sua distribuição Linux
-✓ Identifica o gerenciador de pacotes (apt/yum)
-```
-
-### 2. Instalação de Dependências
-```
-✓ Verifica quais dependências já estão instaladas
-✓ Instala apenas as que estão faltando
-✓ Mostra progresso de cada instalação
-```
-
-### 3. Download do Projeto
-```
-✓ Baixa o código-fonte do GitHub
-✓ URL: https://github.com/Revoltado-RvT/PMG_V2/archive/refs/heads/main.zip
-✓ Salva em diretório temporário
-✓ Mostra barra de progresso
-```
-
-### 4. Extração e Instalação
-```
-✓ Extrai arquivos do ZIP
-✓ Copia para ~/.local/bin
-✓ Aplica permissões de execução
-✓ Verifica integridade dos arquivos
-```
-
-### 5. Configuração do Shell
-```
-✓ Adiciona ~/.local/bin ao PATH
-✓ Cria alias 'pmg'
-✓ Atualiza ~/.bashrc automaticamente
-```
-
-### 6. Permissões PNETLab/EVE-NG
-```
-✓ Detecta se está em servidor PNETLab/EVE-NG
-✓ Executa: sudo /opt/unetlab/wrappers/unl_wrapper -a fixpermissions
-✓ Pula esta etapa se não for servidor PNETLab
-```
-
-### 7. Testes Finais
-```
-✓ Testa comando 'pmg help'
-✓ Testa parser Python
-✓ Verifica conectividade
-```
-
-### 8. Limpeza
-```
-✓ Remove arquivos temporários
-✓ Limpa cache de download
-```
-
----
-
-## 🚀 Após a Instalação
-
-### 1. Recarregue o Shell
+### Método 1: Instalação Rápida com wget (Recomendado)
 
 ```bash
-source ~/.bashrc
+wget -O /usr/sbin/pmg https://raw.githubusercontent.com/Revoltado-RvT/PMG_V2/main/pmg && chmod +x /usr/sbin/pmg && pmg
 ```
 
-**OU** simplesmente abra um novo terminal.
+**Vantagens:**
+- ✅ Instalação em uma única linha
+- ✅ Mais rápido
+- ✅ Requer apenas wget
 
-### 2. Verifique a Instalação
+### Método 2: Instalação Rápida com curl
 
+```bash
+curl -o /usr/sbin/pmg https://raw.githubusercontent.com/Revoltado-RvT/PMG_V2/main/pmg && chmod +x /usr/sbin/pmg && pmg
+```
+
+**Vantagens:**
+- ✅ Instalação em uma única linha
+- ✅ Útil se wget não estiver disponível
+
+### Método 3: Script de Instalação Automática
+
+```bash
+# Baixar e executar o instalador
+bash <(curl -sL https://raw.githubusercontent.com/Revoltado-RvT/PMG_V2/main/auto-install-pmg.sh)
+```
+
+ou
+
+```bash
+# Baixar primeiro, depois executar
+wget https://raw.githubusercontent.com/Revoltado-RvT/PMG_V2/main/auto-install-pmg.sh
+chmod +x auto-install-pmg.sh
+sudo ./auto-install-pmg.sh
+```
+
+**Vantagens:**
+- ✅ Instalação guiada
+- ✅ Verifica dependências
+- ✅ Testa a instalação automaticamente
+- ✅ Mensagens coloridas e informativas
+
+### Método 4: Instalação Manual Passo a Passo
+
+#### Passo 1: Clonar o Repositório
+
+```bash
+cd /tmp
+git clone https://github.com/Revoltado-RvT/PMG_V2.git
+cd PMG_V2
+```
+
+#### Passo 2: Copiar o Script Principal
+
+```bash
+sudo cp pmg /usr/sbin/pmg
+```
+
+#### Passo 3: Tornar Executável
+
+```bash
+sudo chmod +x /usr/sbin/pmg
+```
+
+#### Passo 4: Criar Diretório de Configuração
+
+```bash
+sudo mkdir -p /opt/pmg
+```
+
+#### Passo 5: Executar PMG pela Primeira Vez
+
+```bash
+sudo pmg
+```
+
+**Vantagens:**
+- ✅ Controle total sobre cada etapa
+- ✅ Útil para troubleshooting
+- ✅ Permite customizações
+
+## 🔧 Verificação da Instalação
+
+Após a instalação, verifique se tudo está funcionando corretamente:
+
+### 1. Verificar Versão
+
+```bash
+pmg version
+```
+
+**Saída esperada:**
+```
+PMG v3.2
+Modified from ishare2-cli
+API: https://labhub.eu.org/0:/addons/
+```
+
+### 2. Testar Conectividade
+
+```bash
+pmg test
+```
+
+**Saída esperada:**
+```
+[-] Running connection tests...
+[-] Checking if LabHub Main is reachable...
+[+] LabHub Main is reachable.
+[-] Checking if LabHub Drive is reachable...
+[+] LabHub Drive is reachable.
+[-] Checking if GitHub is reachable...
+[+] GitHub is reachable.
+[-] Checking if Google DNS is reachable...
+[+] Google DNS is reachable.
+[+] All services are reachable.
+```
+
+### 3. Buscar Imagens de Teste
+
+```bash
+pmg search qemu win
+```
+
+**Saída esperada:**
+Deve listar várias imagens Windows disponíveis.
+
+## 📁 Estrutura de Arquivos Após Instalação
+
+```
+/usr/sbin/pmg           # Binário principal do PMG
+/opt/pmg/               # Diretório de dados do PMG
+├── pmg.conf            # Arquivo de configuração
+├── pmg.log             # Arquivo de logs
+├── labhub.json         # Cache do índice de imagens
+└── tmp/                # Arquivos temporários
+```
+
+## ⚙️ Configuração Pós-Instalação
+
+### Configuração Automática
+
+O PMG cria automaticamente um arquivo de configuração padrão em `/opt/pmg/pmg.conf` na primeira execução.
+
+### Configuração Manual (Opcional)
+
+Se desejar personalizar as configurações, edite o arquivo:
+
+```bash
+sudo nano /opt/pmg/pmg.conf
+```
+
+**Opções disponíveis:**
+
+```bash
+USE_ARIA2C=false        # true: usar aria2c (mais rápido), false: usar wget
+SSL_CHECK=true          # true: verificar SSL, false: ignorar verificação SSL
+CHANNEL=main            # Canal de atualização (main/dev)
+```
+
+**Exemplo de configuração otimizada:**
+
+```bash
+USE_ARIA2C=true         # Ativar downloads mais rápidos
+SSL_CHECK=true          # Manter segurança
+CHANNEL=main            # Usar versão estável
+```
+
+### Instalar aria2c para Downloads Mais Rápidos (Opcional)
+
+```bash
+sudo apt update
+sudo apt install aria2 -y
+```
+
+Depois, edite a configuração:
+
+```bash
+sudo nano /opt/pmg/pmg.conf
+```
+
+Altere para:
+```bash
+USE_ARIA2C=true
+```
+
+## 🔍 Resolução de Problemas na Instalação
+
+### Problema 1: "Permission denied"
+
+**Erro:**
+```
+-bash: /usr/sbin/pmg: Permission denied
+```
+
+**Solução:**
+```bash
+sudo chmod +x /usr/sbin/pmg
+```
+
+### Problema 2: "command not found"
+
+**Erro:**
+```
+pmg: command not found
+```
+
+**Solução:**
+```bash
+# Verificar se o arquivo existe
+ls -la /usr/sbin/pmg
+
+# Se não existir, reinstalar
+sudo wget -O /usr/sbin/pmg https://raw.githubusercontent.com/Revoltado-RvT/PMG_V2/main/pmg
+sudo chmod +x /usr/sbin/pmg
+```
+
+### Problema 3: Erro ao baixar do GitHub
+
+**Erro:**
+```
+Failed to download PMG
+```
+
+**Possíveis Soluções:**
+
+1. **Verificar conectividade com GitHub:**
+```bash
+ping github.com
+```
+
+2. **Tentar com curl em vez de wget:**
+```bash
+curl -o /usr/sbin/pmg https://raw.githubusercontent.com/Revoltado-RvT/PMG_V2/main/pmg
+```
+
+3. **Verificar firewall:**
+```bash
+sudo ufw status
+```
+
+4. **Usar proxy se necessário:**
+```bash
+export http_proxy=http://seu_proxy:porta
+export https_proxy=http://seu_proxy:porta
+```
+
+### Problema 4: Falta de dependências
+
+**Erro:**
+```
+jq: command not found
+```
+
+**Solução:**
+```bash
+sudo apt update
+sudo apt install -y curl wget jq unzip unrar tree
+```
+
+### Problema 5: Erro de SSL
+
+**Erro:**
+```
+SSL certificate problem
+```
+
+**Solução temporária (não recomendado para produção):**
+```bash
+# Usar wget com --no-check-certificate
+wget --no-check-certificate -O /usr/sbin/pmg https://raw.githubusercontent.com/Revoltado-RvT/PMG_V2/main/pmg
+```
+
+**Solução adequada:**
+```bash
+# Atualizar certificados
+sudo apt update
+sudo apt install ca-certificates
+sudo update-ca-certificates
+```
+
+## 🔄 Atualização
+
+Para atualizar o PMG para a versão mais recente:
+
+```bash
+# Baixar nova versão
+sudo wget -O /usr/sbin/pmg https://raw.githubusercontent.com/Revoltado-RvT/PMG_V2/main/pmg
+
+# Tornar executável
+sudo chmod +x /usr/sbin/pmg
+
+# Verificar nova versão
+pmg version
+```
+
+## 🗑️ Desinstalação
+
+### Método 1: Script Automático
+
+```bash
+bash <(curl -sL https://raw.githubusercontent.com/Revoltado-RvT/PMG_V2/main/uninstall-pmg.sh)
+```
+
+### Método 2: Manual
+
+```bash
+# Remover binário
+sudo rm /usr/sbin/pmg
+
+# Remover diretório de configuração (opcional)
+sudo rm -rf /opt/pmg
+```
+
+## 📊 Verificação de Integridade
+
+Após a instalação, você pode verificar a integridade do arquivo:
+
+```bash
+# Ver informações do arquivo
+ls -lh /usr/sbin/pmg
+
+# Verificar se é executável
+file /usr/sbin/pmg
+
+# Ver primeiras linhas do script
+head -n 20 /usr/sbin/pmg
+```
+
+## 🎯 Próximos Passos
+
+Após instalar com sucesso:
+
+1. **Explorar comandos:**
 ```bash
 pmg help
 ```
 
-Você deve ver o menu de ajuda completo.
-
-### 3. Configure o PMG
-
+2. **Buscar imagens:**
 ```bash
-pmg configure
+pmg search qemu
 ```
 
-Você será solicitado a informar:
-- **IP/Hostname** do servidor PNETLab/EVE-NG
-- **Porta SSH** (padrão: 22)
-- **Usuário** (padrão: root)
-- **Senha SSH**
-- **Diretório de downloads** (padrão: ~/pmg-downloads)
-
-### 4. Teste a Conexão
-
+3. **Baixar sua primeira imagem:**
 ```bash
-pmg test
+pmg search qemu win
+pmg pull qemu [ID]
 ```
 
-### 5. Comece a Usar!
-
+4. **Ler a documentação completa:**
 ```bash
-# Buscar imagens
-pmg search fortinet
-pmg search cisco iol
-pmg search juniper
-
-# Listar tudo
-pmg list
-
-# Baixar imagem
-pmg pull 481
-
-# Instalar imagem (download + conversão + upload)
-pmg install qemu fortinet-5.2
+# No repositório
+cat README.md
 ```
-
----
-
-## 🎯 Exemplos de Uso
-
-### Exemplo 1: Setup Lab Fortinet
-
-```bash
-# Buscar versões disponíveis
-pmg search fortinet
-
-# Resultado:
-#  ID   NAME                              TYPE  SIZE
-#  481  fortinet-5.2                      qemu  33.2 MB
-#  482  fortinet-FAC-v6-build0420         qemu  87.9 MB
-#  ...
-
-# Instalar FortiGate
-pmg install qemu fortinet-5.2
-
-# Verificar instalação
-pmg installed | grep fortinet
-```
-
-### Exemplo 2: Lab Multi-Vendor
-
-```bash
-# Cisco IOL
-pmg search cisco iol
-pmg pull 10
-
-# Juniper vMX
-pmg search juniper
-pmg pull 25
-
-# Fortinet
-pmg search fortinet
-pmg pull 481
-
-# Upload em lote
-cd ~/pmg-downloads/qemu
-for img in *.qcow2; do
-    pmg upload qemu "$img"
-done
-```
-
-### Exemplo 3: Conversão de Imagens Próprias
-
-```bash
-# VMware → QCOW2
-pmg convert ~/Downloads/FortiGate.vmdk qcow2
-
-# VirtualBox → QCOW2
-pmg convert ~/Downloads/router.vdi qcow2
-
-# Upload
-pmg upload qemu FortiGate.qcow2
-```
-
----
-
-## 🛠️ Troubleshooting
-
-### Problema: "Permission denied"
-
-**Solução:**
-```bash
-chmod +x auto-install-pmg.sh
-./auto-install-pmg.sh
-```
-
-### Problema: "sudo: command not found"
-
-**Solução:**
-```bash
-# Como root
-apt-get install sudo
-usermod -aG sudo seu_usuario
-# Faça logout e login novamente
-```
-
-### Problema: Busca não retorna resultados
-
-**Solução:**
-```bash
-# Atualizar cache
-pmg cache-update
-
-# Limpar cache
-rm -rf ~/.pmg-cache/*
-
-# Modo debug
-DEBUG=1 pmg search fortinet
-```
-
-### Problema: Download falha
-
-**Solução:**
-```bash
-# Verificar conectividade
-pmg test
-
-# Verificar dependências
-wget --version
-curl --version
-```
-
-### Problema: Upload SSH falha
-
-**Solução:**
-```bash
-# Testar SSH manualmente
-ssh -p 22 root@IP_SERVIDOR
-
-# Instalar sshpass se necessário
-sudo apt-get install sshpass
-
-# Reconfigurar
-pmg configure
-```
-
-### Problema: Conversão de imagem falha
-
-**Solução:**
-```bash
-# Instalar qemu-utils
-sudo apt-get install qemu-utils
-
-# Verificar instalação
-qemu-img --version
-```
-
----
-
-## 📊 Comparação: Manual vs Automatizado
-
-| Tarefa | Manual | Automatizado |
-|--------|--------|--------------|
-| Download GitHub | `git clone` ou download ZIP | ✅ Automático |
-| Extrair arquivos | `unzip file.zip` | ✅ Automático |
-| Instalar dependências | `sudo apt install ...` | ✅ Automático |
-| Copiar arquivos | `cp file ~/.local/bin` | ✅ Automático |
-| Dar permissões | `chmod +x ...` | ✅ Automático |
-| Configurar PATH | Editar ~/.bashrc | ✅ Automático |
-| Criar alias | Editar ~/.bashrc | ✅ Automático |
-| Fix permissions | `sudo unl_wrapper ...` | ✅ Automático |
-| Testar instalação | `pmg help` | ✅ Automático |
-| **Tempo total** | **~10-15 min** | **~2 min** |
-
----
-
-## 🔍 Verificações de Segurança
-
-O instalador possui várias verificações de segurança:
-
-✅ **Não permite execução como root** - evita problemas de permissões  
-✅ **Verifica checksums** dos arquivos baixados  
-✅ **Usa HTTPS** para todos os downloads  
-✅ **Limpa arquivos temporários** após instalação  
-✅ **Não modifica** arquivos de sistema críticos  
-✅ **Usa diretórios de usuário** (~/.local/bin)  
-
----
-
-## 📚 Comandos Disponíveis
-
-Após a instalação, você terá acesso a todos estes comandos:
-
-```bash
-pmg help              # Ajuda completa
-pmg configure         # Configuração interativa
-pmg test              # Testar conectividade
-pmg list              # Listar todas as imagens
-pmg search <vendor>   # Buscar por fabricante
-pmg pull <id>         # Baixar por ID
-pmg download <type> <name>   # Download direto
-pmg convert <file> <format>  # Converter imagem
-pmg upload <type> <file>     # Upload para servidor
-pmg install <type> <name>    # Instalação completa
-pmg installed         # Ver imagens instaladas
-pmg cache-update      # Atualizar cache
-pmg version           # Ver versão
-```
-
----
-
-## 🌐 URLs Importantes
-
-- **LabHub QEMU**: https://labhub.eu.org/0:/addons/qemu/
-- **LabHub IOL**: https://labhub.eu.org/0:/addons/iol/
-- **LabHub Dynamips**: https://labhub.eu.org/0:/addons/dynamips/
-- **GitHub**: https://github.com/Revoltado-RvT/PMG_V2
-- **PNETLab**: https://pnetlab.com
-- **EVE-NG**: https://eve-ng.net
-
----
-
-## 🏆 Fabricantes Suportados
-
-```
-✅ Cisco       ✅ Juniper      ✅ Fortinet     ✅ Palo Alto
-✅ Checkpoint  ✅ Arista       ✅ MikroTik     ✅ pfSense
-✅ F5          ✅ Sophos       ✅ SonicWall    ✅ WatchGuard
-✅ Zabbix      ✅ Zeus         ✅ Firepower    ✅ Windows
-✅ Linux       ... e muito mais!
-```
-
----
 
 ## 📞 Suporte
 
-- **Issues**: [GitHub Issues](https://github.com/Revoltado-RvT/PMG_V2/issues)
-- **Wiki**: [GitHub Wiki](https://github.com/Revoltado-RvT/PMG_V2/wiki)
+Se encontrar problemas durante a instalação:
 
----
-
-## 📄 Licença
-
-MIT License - veja [LICENSE](LICENSE) para detalhes.
-
----
-
-## 🎓 Créditos
-
-- **Versão Original**: ishare2 e PNETLab Manager v2.0
-- **Melhorias v3.0**: Claude AI e comunidade
-- **Repositório de Imagens**: [LabHub.eu.org](https://labhub.eu.org)
-- **Instalador Automatizado**: Desenvolvido para simplificar instalação
-
----
-
-<div align="center">
-
-**⭐ Se este projeto te ajudou, deixe uma estrela! ⭐**
-
-Made with ❤️ for the Network Lab Community
-
-[Reportar Bug](https://github.com/Revoltado-RvT/PMG_V2/issues) · 
-[Solicitar Feature](https://github.com/Revoltado-RvT/PMG_V2/issues) · 
-[Documentação](https://github.com/Revoltado-RvT/PMG_V2/wiki)
-
----
-
-## 🚀 Quick Start
-
+1. **Verificar logs:**
 ```bash
-# Instalação em um comando
-wget -qO- https://raw.githubusercontent.com/Revoltado-RvT/PMG_V2/main/auto-install-pmg.sh | bash
-
-# Recarregar shell
-source ~/.bashrc
-
-# Configurar
-pmg configure
-
-# Começar a usar
-pmg search fortinet
+sudo tail -n 50 /opt/pmg/pmg.log
 ```
 
-**É simples assim!** 🎉
+2. **Relatar problema:**
+   - [GitHub Issues](https://github.com/Revoltado-RvT/PMG_V2/issues)
+   - [Telegram @NetLabHub](https://t.me/NetLabHub)
 
-</div>
+3. **Fornecer informações:**
+   - Versão do sistema: `lsb_release -a`
+   - Versão do PMG: `pmg version`
+   - Logs: Conteúdo de `/opt/pmg/pmg.log`
+
+---
+
+✅ **Instalação concluída com sucesso!** Aproveite o PMG v3.2!
