@@ -1,19 +1,25 @@
 #!/bin/bash
-# PMG - PNETLab Manager
-# Version: 3.2
+# PMG - PNETLab Manager with MySQL Integration
+# Version: 3.2-mysql
 # Based on ishare2-cli
-# Modified to use correct LabHub API endpoints
+# Modified to use correct LabHub API endpoints and MySQL logging
 
 # Default configuration
 USE_ARIA2C=false
 SSL_CHECK="true"
 CHANNEL="main"
-VERSION="3.2"
+VERSION="3.2-mysql"
 
 # Initialize variables
 PMG_DIR="/opt/pmg"
 LOG_FILE="$PMG_DIR/pmg.log"
 TEMP_JSON="$PMG_DIR/labhub.json"
+
+# MySQL Configuration
+MYSQL_SOCKET="/media/2d05/revoltado/private/mysql/socket"
+MYSQL_USER="root"
+MYSQL_PASS="2n2Qkc7TtzLgOVxY"
+MYSQL_DB="pmg_stats"
 
 # Colors
 RED='\033[31m'
@@ -49,6 +55,232 @@ logger() {
     fi
 
     echo -e "[$log_level][$SCR_NAME] $(date '+%Y-%m-%d %H:%M:%S'): $*" >>"$LOG_FILE" 2>/dev/null
+}
+
+# MySQL Functions
+mysql_exec() {
+    local query="$1"
+    mysql --socket="$MYSQL_SOCKET" -u"$MYSQL_USER" -p"$MYSQL_PASS" -D"$MYSQL_DB" -e "$query" 2>/dev/null
+}
+
+mysql_check_connection() {
+    if mysql --socket="$MYSQL_SOCKET" -u"$MYSQL_USER" -p"$MYSQL_PASS" -e "SELECT 1;" &>/dev/null; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+mysql_init_database() {
+    echo -e "${YELLOW}[+] Initializing MySQL database...${NO_COLOR}"
+    
+    # Check connection
+    if ! mysql_check_connection; then
+        echo -e "${RED}[-] Failed to connect to MySQL server${NO_COLOR}"
+        echo -e "${YELLOW}[!] MySQL features will be disabled${NO_COLOR}"
+        return 1
+    fi
+    
+    # Create database if not exists
+    mysql --socket="$MYSQL_SOCKET" -u"$MYSQL_USER" -p"$MYSQL_PASS" -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DB;" 2>/dev/null
+    
+    # Create tables
+    mysql_exec "
+    CREATE TABLE IF NOT EXISTS downloads (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        image_type VARCHAR(50) NOT NULL,
+        image_id INT NOT NULL,
+        image_name VARCHAR(255) NOT NULL,
+        image_size VARCHAR(50),
+        download_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        download_status ENUM('success', 'failed', 'in_progress') DEFAULT 'in_progress',
+        download_time_seconds INT,
+        error_message TEXT,
+        INDEX idx_type (image_type),
+        INDEX idx_date (download_date),
+        INDEX idx_status (download_status)
+    );
+    "
+    
+    mysql_exec "
+    CREATE TABLE IF NOT EXISTS searches (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        search_type VARCHAR(50),
+        search_filter VARCHAR(255),
+        results_count INT,
+        search_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_date (search_date)
+    );
+    "
+    
+    mysql_exec "
+    CREATE TABLE IF NOT EXISTS usage_stats (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        action VARCHAR(100) NOT NULL,
+        details TEXT,
+        execution_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_action (action),
+        INDEX idx_date (execution_date)
+    );
+    "
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}[✓] MySQL database initialized successfully${NO_COLOR}"
+        logger info "MySQL database initialized"
+        return 0
+    else
+        echo -e "${RED}[-] Failed to initialize MySQL database${NO_COLOR}"
+        return 1
+    fi
+}
+
+mysql_log_download() {
+    local image_type="$1"
+    local image_id="$2"
+    local image_name="$3"
+    local image_size="$4"
+    local status="$5"
+    local download_time="$6"
+    local error_msg="$7"
+    
+    if ! mysql_check_connection; then
+        return 1
+    fi
+    
+    # Escape single quotes in variables
+    image_name="${image_name//\'/\\\'}"
+    error_msg="${error_msg//\'/\\\'}"
+    
+    mysql_exec "
+    INSERT INTO downloads (image_type, image_id, image_name, image_size, download_status, download_time_seconds, error_message)
+    VALUES ('$image_type', $image_id, '$image_name', '$image_size', '$status', $download_time, '$error_msg');
+    "
+    
+    logger info "Download logged to MySQL: $image_type/$image_name - $status"
+}
+
+mysql_log_search() {
+    local search_type="$1"
+    local search_filter="$2"
+    local results_count="$3"
+    
+    if ! mysql_check_connection; then
+        return 1
+    fi
+    
+    search_filter="${search_filter//\'/\\\'}"
+    
+    mysql_exec "
+    INSERT INTO searches (search_type, search_filter, results_count)
+    VALUES ('$search_type', '$search_filter', $results_count);
+    "
+}
+
+mysql_log_action() {
+    local action="$1"
+    local details="$2"
+    
+    if ! mysql_check_connection; then
+        return 1
+    fi
+    
+    details="${details//\'/\\\'}"
+    
+    mysql_exec "
+    INSERT INTO usage_stats (action, details)
+    VALUES ('$action', '$details');
+    "
+}
+
+mysql_show_stats() {
+    if ! mysql_check_connection; then
+        echo -e "${RED}[-] MySQL connection not available${NO_COLOR}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}=== PMG Statistics ===${NO_COLOR}\n"
+    
+    # Total downloads
+    echo -e "${YELLOW}📊 Download Statistics:${NO_COLOR}"
+    mysql --socket="$MYSQL_SOCKET" -u"$MYSQL_USER" -p"$MYSQL_PASS" -D"$MYSQL_DB" -t -e "
+    SELECT 
+        download_status as 'Status',
+        COUNT(*) as 'Count',
+        ROUND(AVG(download_time_seconds), 2) as 'Avg Time (s)'
+    FROM downloads 
+    GROUP BY download_status;
+    " 2>/dev/null
+    
+    echo ""
+    
+    # Downloads by type
+    echo -e "${YELLOW}📦 Downloads by Type:${NO_COLOR}"
+    mysql --socket="$MYSQL_SOCKET" -u"$MYSQL_USER" -p"$MYSQL_PASS" -D"$MYSQL_DB" -t -e "
+    SELECT 
+        image_type as 'Type',
+        COUNT(*) as 'Downloads',
+        SUM(CASE WHEN download_status = 'success' THEN 1 ELSE 0 END) as 'Successful'
+    FROM downloads 
+    GROUP BY image_type;
+    " 2>/dev/null
+    
+    echo ""
+    
+    # Recent downloads
+    echo -e "${YELLOW}📥 Recent Downloads (Last 10):${NO_COLOR}"
+    mysql --socket="$MYSQL_SOCKET" -u"$MYSQL_USER" -p"$MYSQL_PASS" -D"$MYSQL_DB" -t -e "
+    SELECT 
+        DATE_FORMAT(download_date, '%Y-%m-%d %H:%i') as 'Date',
+        image_type as 'Type',
+        image_name as 'Image',
+        download_status as 'Status'
+    FROM downloads 
+    ORDER BY download_date DESC 
+    LIMIT 10;
+    " 2>/dev/null
+    
+    echo ""
+    
+    # Search statistics
+    echo -e "${YELLOW}🔍 Search Statistics:${NO_COLOR}"
+    mysql --socket="$MYSQL_SOCKET" -u"$MYSQL_USER" -p"$MYSQL_PASS" -D"$MYSQL_DB" -t -e "
+    SELECT 
+        search_type as 'Type',
+        COUNT(*) as 'Searches',
+        ROUND(AVG(results_count), 0) as 'Avg Results'
+    FROM searches 
+    GROUP BY search_type;
+    " 2>/dev/null
+}
+
+mysql_export_stats() {
+    local output_file="${1:-/tmp/pmg_stats_$(date +%Y%m%d_%H%M%S).csv}"
+    
+    if ! mysql_check_connection; then
+        echo -e "${RED}[-] MySQL connection not available${NO_COLOR}"
+        return 1
+    fi
+    
+    echo -e "${YELLOW}[+] Exporting statistics to: $output_file${NO_COLOR}"
+    
+    mysql --socket="$MYSQL_SOCKET" -u"$MYSQL_USER" -p"$MYSQL_PASS" -D"$MYSQL_DB" -e "
+    SELECT 
+        d.download_date,
+        d.image_type,
+        d.image_name,
+        d.image_size,
+        d.download_status,
+        d.download_time_seconds,
+        d.error_message
+    FROM downloads d
+    ORDER BY d.download_date DESC;
+    " 2>/dev/null | sed 's/\t/,/g' > "$output_file"
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}[✓] Statistics exported to: $output_file${NO_COLOR}"
+    else
+        echo -e "${RED}[-] Failed to export statistics${NO_COLOR}"
+    fi
 }
 
 print_box() {
@@ -115,7 +347,7 @@ create_pmg_dir() {
 
 install_dependencies() {
     echo -e "${YELLOW}[+] PMG needs to install some dependencies to work properly.${NO_COLOR}"
-    local packages=("curl" "wget" "jq" "unzip")
+    local packages=("curl" "wget" "jq" "unzip" "mysql-client")
     echo -e "${YELLOW}[+] List of packages to be installed: ${NO_COLOR}"
     for package in "${packages[@]}"; do
         echo -e "${YELLOW} -${NO_COLOR} $package"
@@ -129,7 +361,7 @@ install_dependencies() {
 
 install_package() {
     local package_name=$1
-    if ! command -v "$package_name" &>/dev/null; then
+    if ! command -v "$package_name" &>/dev/null && ! dpkg -l | grep -q "^ii.*$package_name"; then
         echo -e "${YELLOW}[+] Installing $package_name...${NO_COLOR}"
         apt-get update -qq >/dev/null 2>&1
         if ! apt-get install -qq -y "$package_name" >/dev/null 2>&1; then
@@ -154,16 +386,13 @@ check_installed() {
     fi
 }
 
-# Função para buscar o índice JSON - BASEADA NO ISHARE2 ORIGINAL
 fetch_json() {
     check_installed "jq"
     
-    # Constantes - Usando o mesmo método do ishare2
     REPO_URL="https://api.github.com/repos/ishare2-org/mirrors/releases/latest"
 
     logger info "Fetching the latest release information from: $REPO_URL"
 
-    # Fetch release metadata
     response=$(curl -sL "$REPO_URL" 2>/dev/null) || {
         logger error "Failed to fetch release metadata from: $REPO_URL"
         echo -e "${RED}[-] Failed to connect to GitHub API. Check your internet connection.${NO_COLOR}"
@@ -172,14 +401,11 @@ fetch_json() {
         exit 1
     }
 
-    # Extract labhub.json URL
     labhub_url=$(echo "$response" | jq -r '.assets[] | select(.name == "labhub.json") | .browser_download_url' 2>/dev/null)
 
     if [[ -z "$labhub_url" || "$labhub_url" == "null" ]]; then
         logger error "labhub.json not found in release metadata"
         echo -e "${RED}[-] Error: Failed to get image index URL from the repository.${NO_COLOR}"
-        echo -e "${YELLOW}[!] Debug: Response from GitHub API:${NO_COLOR}"
-        echo "$response" | jq '.' 2>/dev/null || echo "$response"
         exit 1
     fi
 
@@ -196,11 +422,9 @@ fetch_json() {
         exit 1
     fi
 
-    # Validate downloaded JSON
     if ! jq -e . <"$TEMP_JSON" >/dev/null 2>&1; then
         logger error "Invalid JSON structure in: $TEMP_JSON"
         echo -e "${RED}[-] Error: Invalid JSON index file.${NO_COLOR}"
-        echo -e "${YELLOW}[!] Please try again later or report this issue.${NO_COLOR}"
         exit 1
     else
         logger info "Valid JSON file confirmed: $TEMP_JSON"
@@ -280,19 +504,14 @@ search_images() {
     
     fetch_json
 
-    # Converter input para uppercase para comparação
     TYPE=${TYPE_INPUT^^}
-    
-    # Se TYPE for "bin", converter para "IOL"
     [[ "$TYPE" == "BIN" ]] && TYPE="IOL"
 
-    # Determinar se deve buscar em todos os tipos
     VALID_TYPES=("IOL" "QEMU" "DYNAMIPS")
     SEARCH_ACROSS=false
     
     if [[ "$TYPE" == "ALL" || ! " ${VALID_TYPES[*]} " =~ " ${TYPE} " ]]; then
         SEARCH_ACROSS=true
-        # Se TYPE não é válido, usar como filtro
         [[ ! "$TYPE" == "ALL" ]] && FILTER="$TYPE_INPUT"
     fi
 
@@ -311,6 +530,7 @@ search_images() {
 
         if [[ -z "$data" ]]; then
             echo -e "\n${RED}No matching images found for \"$FILTER\"${NO_COLOR}"
+            results_count=0
         else
             {
                 echo -e "ID\tNAME\tTYPE\tSIZE"
@@ -318,8 +538,8 @@ search_images() {
                 echo "$data"
             } | column -t -s $'\t'
 
-            total_count=$(echo "$data" | wc -l)
-            echo -e "\n${GREEN}$total_count image(s) found${NO_COLOR}"
+            results_count=$(echo "$data" | wc -l)
+            echo -e "\n${GREEN}$results_count image(s) found${NO_COLOR}"
         fi
     else
         print_separator "Available $TYPE images"
@@ -336,6 +556,7 @@ search_images() {
             if [[ -n "$FILTER" ]]; then
                 echo -e "${YELLOW}[!] Try searching without filter: pmg search ${TYPE_INPUT}${NO_COLOR}"
             fi
+            results_count=0
         else
             {
                 echo -e "ID\tNAME\tSIZE"
@@ -343,10 +564,13 @@ search_images() {
                 echo "$data"
             } | column -t -s $'\t'
 
-            total_count=$(echo "$data" | wc -l)
-            echo -e "\n${GREEN}$total_count $TYPE image(s) found${NO_COLOR}"
+            results_count=$(echo "$data" | wc -l)
+            echo -e "\n${GREEN}$results_count $TYPE image(s) found${NO_COLOR}"
         fi
     fi
+    
+    # Log search to MySQL
+    mysql_log_search "$TYPE" "$FILTER" "$results_count"
     
     echo -e "${YELLOW}[!]${NO_COLOR} Use: ${GREEN}pmg pull <type> <id>${NO_COLOR} to download an image"
 }
@@ -355,6 +579,8 @@ pull_images() {
     local IMAGE_TYPE=$1
     local IMAGE_ID=$2
     local OVERWRITE=$3
+    
+    local start_time=$(date +%s)
 
     [[ -z "$IMAGE_TYPE" ]] && {
         echo "Usage: pmg pull <type> <id> [--overwrite]"
@@ -374,7 +600,7 @@ pull_images() {
 
     fetch_json
 
-    local image_data image_name install_path protocol hostname prefix download_urls
+    local image_data image_name install_path protocol hostname prefix download_urls image_size
     
     image_data=$(jq -r --arg type "$IMAGE_TYPE" --argjson id "$IMAGE_ID" \
         '.[$type][] | select(.id == $id)' "$TEMP_JSON" 2>/dev/null)
@@ -382,42 +608,43 @@ pull_images() {
     [[ -z "$image_data" ]] && {
         echo -e "${RED}Image with ID $IMAGE_ID not found in $IMAGE_TYPE${NO_COLOR}"
         echo -e "${YELLOW}Use 'pmg search ${IMAGE_TYPE,,}' to see available images${NO_COLOR}"
+        mysql_log_download "$IMAGE_TYPE" "$IMAGE_ID" "unknown" "0" "failed" "0" "Image not found"
         exit 1
     }
 
     image_name=$(jq -r '.name' <<<"$image_data")
+    image_size=$(jq -r '.metadata.total_human_size' <<<"$image_data")
     install_path=$(jq -r '.metadata.install_path' <<<"$image_data")
     protocol=$(jq -r '.url_properties.protocol' "$TEMP_JSON")
     
-    # Usar o primeiro hostname disponível (drive ou main)
     hostname=$(jq -r '.url_properties.hostnames.drive // .url_properties.hostnames.main' "$TEMP_JSON")
     prefix=$(jq -r '.url_properties.prefixes.drive // .url_properties.prefixes.main' "$TEMP_JSON")
 
     echo -e "${YELLOW}[!] IMAGE INFO${NO_COLOR}"
     printf "%-20s: %s\n" "Name" "$image_name"
-    printf "%-20s: %s\n" "Size" "$(jq -r '.metadata.total_human_size' <<<"$image_data")"
+    printf "%-20s: %s\n" "Size" "$image_size"
     printf "%-20s: %s\n" "Type" "$IMAGE_TYPE"
     printf "%-20s: %s\n" "Path" "$install_path"
     printf "%-20s: %s\n" "Host" "$hostname"
     echo ""
 
-    # Check if file exists
     if [ -e "$install_path/$image_name" ] && [ "$OVERWRITE" != "--overwrite" ]; then
         echo -e "${YELLOW}File already exists. Use --overwrite to replace it${NO_COLOR}"
+        mysql_log_download "$IMAGE_TYPE" "$IMAGE_ID" "$image_name" "$image_size" "failed" "0" "File already exists"
         exit 0
     fi
 
-    # Create install directory
     mkdir -p "$install_path" 2>/dev/null
 
-    # Build download URLs
     download_urls=()
     while IFS= read -r url; do
         full_url="$protocol://$hostname$prefix$url"
         download_urls+=("$full_url")
     done < <(jq -r '.files[].path' <<<"$image_data")
 
-    # Download all files
+    local download_success=true
+    local error_message=""
+    
     for url in "${download_urls[@]}"; do
         filename=$(basename "$url")
         
@@ -428,32 +655,43 @@ pull_images() {
             echo -e "${GREEN}[✓] Downloaded: $filename${NO_COLOR}"
         else
             echo -e "${RED}[✗] Failed to download: $filename${NO_COLOR}"
-            exit 1
+            download_success=false
+            error_message="Failed to download $filename"
+            break
         fi
     done
 
-    # Post-processing for QEMU
-    if [ "$IMAGE_TYPE" = "QEMU" ]; then
+    if [ "$IMAGE_TYPE" = "QEMU" ] && [ "$download_success" = true ]; then
         handle_compressed_files "$image_name" "$install_path"
     fi
 
-    fix_permissions "$install_path"
-    
-    echo -e "${GREEN}[✓] Installation completed successfully!${NO_COLOR}"
+    if [ "$download_success" = true ]; then
+        fix_permissions "$install_path"
+        echo -e "${GREEN}[✓] Installation completed successfully!${NO_COLOR}"
+        
+        local end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+        
+        mysql_log_download "$IMAGE_TYPE" "$IMAGE_ID" "$image_name" "$image_size" "success" "$duration" ""
+    else
+        local end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+        
+        mysql_log_download "$IMAGE_TYPE" "$IMAGE_ID" "$image_name" "$image_size" "failed" "$duration" "$error_message"
+        exit 1
+    fi
 }
 
 handle_compressed_files() {
     local foldername=$1
     local dir=$2
     
-    # Handle .tgz files
     if ls "${dir}"/*.tgz &>/dev/null 2>&1; then
         file=$(ls "${dir}"/*.tgz)
         echo -e "${YELLOW}[+] Extracting .tgz file...${NO_COLOR}"
         tar -xzf "$file" -C "$dir" 2>/dev/null && rm "$file"
     fi
     
-    # Handle .zip files
     if ls "${dir}"/*.zip &>/dev/null 2>&1; then
         file=$(ls "${dir}"/*.zip)
         echo -e "${YELLOW}[+] Extracting .zip file...${NO_COLOR}"
@@ -490,10 +728,12 @@ connection_tests() {
 
     if [ "$all_services_reachable" = true ]; then
         echo -e "${GREEN}[+] All services are reachable${NO_COLOR}"
+        mysql_log_action "connectivity_test" "All services reachable"
         return 0
     else
         echo -e "${RED}[-] Some services are not reachable${NO_COLOR}"
         echo -e "${YELLOW}[!] Check your internet connection${NO_COLOR}"
+        mysql_log_action "connectivity_test" "Some services unreachable"
         return 1
     fi
 }
@@ -508,6 +748,9 @@ ${YELLOW}Syntax:${NO_COLOR}
 ${YELLOW}Actions:${NO_COLOR}
   search      Search for images by type
   pull        Download an image by type and id
+  stats       Show download and usage statistics (MySQL)
+  export      Export statistics to CSV file
+  initdb      Initialize MySQL database for statistics
   test        Test internet connectivity
   help        Show this help message
   version     Show PMG version
@@ -515,13 +758,17 @@ ${YELLOW}Actions:${NO_COLOR}
 ${YELLOW}Examples:${NO_COLOR}
   pmg search qemu              # Search all QEMU images
   pmg search qemu win          # Search QEMU images with 'win' in name
-  pmg search iol               # Search all IOL images
   pmg pull qemu 1              # Download QEMU image with ID 1
-  pmg pull qemu 1 --overwrite  # Re-download, overwriting existing file
+  pmg stats                    # Show statistics
+  pmg export /tmp/stats.csv    # Export stats to CSV
+  pmg initdb                   # Initialize MySQL database
   pmg test                     # Test connectivity
 
-${YELLOW}Supported Types:${NO_COLOR}
-  qemu, iol (or bin), dynamips
+${YELLOW}MySQL Features:${NO_COLOR}
+  - Download history tracking
+  - Search statistics
+  - Usage analytics
+  - Export to CSV
 
 ${YELLOW}For more information:${NO_COLOR}
   github.com/Revoltado-RvT/PMG_V2
@@ -530,7 +777,7 @@ EOF
 
 show_version() {
     echo -e "${GREEN}PMG v$VERSION${NO_COLOR}"
-    echo "Based on ishare2-cli"
+    echo "Based on ishare2-cli with MySQL integration"
     echo "github.com/Revoltado-RvT/PMG_V2"
 }
 
@@ -539,6 +786,7 @@ create_config() {
     echo "USE_ARIA2C=false" >"$PMG_CONF_FILE"
     echo "SSL_CHECK=true" >>"$PMG_CONF_FILE"
     echo "CHANNEL=main" >>"$PMG_CONF_FILE"
+    echo "MYSQL_ENABLED=true" >>"$PMG_CONF_FILE"
 }
 
 check_config() {
@@ -566,6 +814,15 @@ selector() {
         fi
         pull_images "$2" "$3" "$4"
         ;;
+    "stats")
+        mysql_show_stats
+        ;;
+    "export")
+        mysql_export_stats "$2"
+        ;;
+    "initdb")
+        mysql_init_database
+        ;;
     "test")
         connection_tests
         ;;
@@ -587,6 +844,13 @@ selector() {
 check_user_is_root
 check_pmg_dir
 check_config
+
+# Try to initialize MySQL on first run
+if [[ ! -f "$PMG_DIR/.mysql_initialized" ]]; then
+    if mysql_init_database; then
+        touch "$PMG_DIR/.mysql_initialized"
+    fi
+fi
 
 if [ $# -eq 0 ]; then
     show_help
